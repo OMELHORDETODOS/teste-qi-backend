@@ -1,26 +1,35 @@
+// ==========================
+// TESTE DE QI PREMIUM - BACKEND
+// ==========================
+
 import express from "express";
 import cors from "cors";
 import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 
 const app = express();
+
+// ======== CONFIGURAÇÕES BÁSICAS ========
 app.use(express.json());
 app.use(cors({
-  origin: ["https://omelhordetodos.github.io"],
+  origin: [
+    "https://omelhordetodos.github.io",
+    "https://omelhordetodos.github.io/teste-qi-frontend"
+  ],
 }));
 
-// 🔑 CONFIG MERCADO PAGO (SDK v2)
+// ======== CONFIG MERCADO PAGO ========
 const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN
 });
 
-// ================= ROTAS =================
+// ======== ROTAS ========
 
-// Teste básico
+// ✅ Teste simples
 app.get("/", (req, res) => {
-  res.send("✅ Servidor Teste de QI Premium ativo!");
+  res.send("✅ Servidor Teste de QI Premium ativo e funcionando!");
 });
 
-// PIX
+// ✅ Criar pagamento PIX
 app.post("/create-pix", async (req, res) => {
   try {
     const payment = new Payment(client);
@@ -40,12 +49,12 @@ app.post("/create-pix", async (req, res) => {
       external_reference: result.external_reference
     });
   } catch (err) {
-    console.error("Erro PIX:", err.message);
+    console.error("❌ Erro PIX:", err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
-// Checkout Pro (Cartão/Boleto)
+// ✅ Criar pagamento via Cartão ou Boleto (Checkout Pro)
 app.post("/create-order", async (req, res) => {
   try {
     const preference = new Preference(client);
@@ -72,28 +81,29 @@ app.post("/create-order", async (req, res) => {
 
     res.json({ init_point: result.init_point });
   } catch (err) {
-    console.error("Erro Checkout:", err.message);
+    console.error("❌ Erro Checkout:", err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
-// Webhook
+// ✅ Webhook de notificação Mercado Pago
 app.post("/webhook", (req, res) => {
   console.log("📩 Webhook recebido:", req.body);
   res.sendStatus(200);
 });
 
-// Status pagamento
+// ✅ Consultar status de pagamento
 app.get("/payment-status/:id", async (req, res) => {
   try {
     const payment = new Payment(client);
     const result = await payment.get({ id: req.params.id });
     res.json({ status: result.status });
   } catch (err) {
+    console.error("❌ Erro consulta status:", err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
-// ================= SERVIDOR =================
+// ======== SERVIDOR ========
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Servidor rodando na porta ${PORT}`));
