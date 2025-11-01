@@ -6,22 +6,41 @@ import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 const app = express();
+
+// Middleware
 app.use(express.json());
-app.use(cors({ origin: ["https://omelhordetodos.github.io"] }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cors()); // ← liberado para todas as origens (pode restringir depois se quiser)
 
 // Configurar o Mercado Pago
 mercadopago.configure({ access_token: process.env.MP_ACCESS_TOKEN });
 
-// Banco em memória (substitua por MongoDB ou outro em produção)
+// Banco em memória
 const ORDERS = new Map();
 
-// Gerar resultado no backend
+// Função para gerar resultado
 function computeIQResult(correct, total) {
   const iq = Math.round(100 + 15 * ((correct - total / 2) / (total * 0.18)));
-  return { score: iq, label: iq >= 130 ? "Gênio" : iq >= 115 ? "Acima da média" : "Média" };
+  return {
+    score: iq,
+    label:
+      iq > 130
+        ? "Gênio"
+        : iq >= 121
+        ? "Brilhante"
+        : iq >= 111
+        ? "Inteligência elevada"
+        : iq >= 101
+        ? "Acima da média"
+        : iq >= 91
+        ? "Na média"
+        : iq >= 81
+        ? "Em desenvolvimento"
+        : "Treine sua mente",
+  };
 }
 
-// 🧾 Criar pagamento via PIX
+// ✅ Criar pagamento via PIX
 app.post("/create-pix", async (req, res) => {
   try {
     const { amount = 3.99, description = "Resultado Teste de QI Premium", correct, total } = req.body;
@@ -36,7 +55,13 @@ app.post("/create-pix", async (req, res) => {
       notification_url: `${process.env.SERVER_URL}/webhook`,
     });
 
-    ORDERS.set(orderId, { id: orderId, correct, total, status: "pending", paymentId: payment.body.id });
+    ORDERS.set(orderId, {
+      id: orderId,
+      correct,
+      total,
+      status: "pending",
+      paymentId: payment.body.id,
+    });
 
     res.json({
       id: payment.body.id,
@@ -45,7 +70,7 @@ app.post("/create-pix", async (req, res) => {
       qr_code: payment.body.point_of_interaction.transaction_data.qr_code,
     });
   } catch (err) {
-    console.error("Erro PIX:", err.message);
+    console.error("❌ Erro PIX:", err.response?.body || err.message);
     res.status(400).json({ error: err.message });
   }
 });
@@ -77,7 +102,7 @@ app.post("/create-order", async (req, res) => {
 
     res.json({ init_point: preference.body.init_point, orderId });
   } catch (err) {
-    console.error("Erro Checkout:", err.message);
+    console.error("❌ Erro Checkout:", err.response?.body || err.message);
     res.status(400).json({ error: err.message });
   }
 });
@@ -88,17 +113,20 @@ app.post("/webhook", async (req, res) => {
     const body = req.body;
     console.log("📩 Webhook recebido:", body);
 
-    if (body.type === "payment") {
+    if (body.type === "payment" && body.data?.id) {
       const payment = await mercadopago.payment.findById(body.data.id);
       const orderId = payment.body.external_reference;
 
       if (ORDERS.has(orderId)) {
-        ORDERS.set(orderId, { ...ORDERS.get(orderId), status: payment.body.status });
+        ORDERS.set(orderId, {
+          ...ORDERS.get(orderId),
+          status: payment.body.status,
+        });
       }
     }
     res.sendStatus(200);
   } catch (err) {
-    console.error("Erro webhook:", err.message);
+    console.error("❌ Erro webhook:", err.message);
     res.sendStatus(500);
   }
 });
@@ -108,9 +136,14 @@ app.get("/payment-status/:id", async (req, res) => {
   try {
     const payment = await mercadopago.payment.get(req.params.id);
     const orderId = payment.body.external_reference;
+
     if (ORDERS.has(orderId)) {
-      ORDERS.set(orderId, { ...ORDERS.get(orderId), status: payment.body.status });
+      ORDERS.set(orderId, {
+        ...ORDERS.get(orderId),
+        status: payment.body.status,
+      });
     }
+
     res.json({ status: payment.body.status, orderId });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -121,10 +154,18 @@ app.get("/payment-status/:id", async (req, res) => {
 app.get("/result/:orderId", (req, res) => {
   const order = ORDERS.get(req.params.orderId);
   if (!order) return res.status(404).json({ error: "Pedido não encontrado" });
-  if (order.status !== "approved") return res.status(402).json({ error: "Pagamento não aprovado" });
+  if (order.status !== "approved")
+    return res.status(402).json({ error: "Pagamento não aprovado" });
   const result = computeIQResult(order.correct || 21, order.total || 42);
   res.json({ result });
 });
 
+// 🏠 Rota padrão
+app.get("/", (req, res) => {
+  res.send("✅ Servidor Teste de QI Premium ativo e funcionando!");
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Servidor rodando na porta ${PORT}`)
+);
