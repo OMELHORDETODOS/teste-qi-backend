@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 dotenv.config();
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: ["https://omelhordetodos.github.io"] }));
+app.use(cors({ origin: ["https://omelhordetodos.github.io", "https://omelhordetodos.github.io/TESTEDEQIB"] }));
 
 // Configurar o Mercado Pago
 mercadopago.configure({ access_token: process.env.MP_ACCESS_TOKEN });
