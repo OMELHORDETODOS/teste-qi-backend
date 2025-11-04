@@ -28,7 +28,7 @@ function computeIQResult(correct, total) {
 // 🟢 Criar pagamento via PIX
 app.post("/create-pix", async (req, res) => {
   try {
-    const { amount = 3.99, description = "Resultado Teste de QI Premium", correct, total } = req.body;
+    const { amount = 1.00, description = "Resultado Teste de QI Premium", correct, total } = req.body;
     const orderId = uuidv4();
 
     const data = await payment.create({
@@ -67,7 +67,7 @@ app.post("/create-order", async (req, res) => {
             title: "Resultado Teste de QI Premium",
             quantity: 1,
             currency_id: "BRL",
-            unit_price: 4.99
+            unit_price: 1.00
           }
         ],
         back_urls: {
